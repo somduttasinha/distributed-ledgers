@@ -1,7 +1,5 @@
 use std::fs;
 
-use log::info;
-
 mod data_store;
 mod primitives;
 mod service;

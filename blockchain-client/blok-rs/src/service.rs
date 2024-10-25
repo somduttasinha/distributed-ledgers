@@ -21,23 +21,6 @@ pub fn create_block(
     addresses: &Vec<String>,
 ) -> Block {
     println!("Creating block");
-    /*
-        let mempool = data_store::get_mempool_instance()
-            .lock()
-            .expect("Expected lock");
-
-        println!("Got mempool");
-
-        // get the latest time in the blockchain
-
-        let blockchain = data_store::get_blockchain_instance()
-            .lock()
-            .expect("Expected lock");
-
-        let addresses = data_store::get_addresses_instance()
-            .lock()
-            .expect("Expected lock");
-    */
 
     let most_recent_block = blockchain
         .iter()

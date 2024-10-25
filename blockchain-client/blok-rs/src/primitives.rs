@@ -34,14 +34,6 @@ pub struct Block {
 }
 
 impl Transaction {
-    /*
-    * 1. Sort all the above fields in alphabetical order by their key.
-      2. Produce a comma-separated string containing all the values, without any space. Numbers (amount,
-         lock time, transaction fee) should be encoded as decimal value without any leading 0s. The signature
-        and addresses (sender, receiver) should be hex-encoded.
-      3. Hash the string produced in step 2 using the SHA-256 hash function (remember to ensure that the hex
-        string starts with 0x).
-    */
     pub fn generate_hash(&self) -> String {
         let raw_string = format!(
             "{},{},{},{},{},{}",
