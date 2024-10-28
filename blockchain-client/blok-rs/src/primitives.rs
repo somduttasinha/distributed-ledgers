@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::Hash;
 
+pub type BlockChain = Vec<Block>;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Transaction {
     pub receiver: String,

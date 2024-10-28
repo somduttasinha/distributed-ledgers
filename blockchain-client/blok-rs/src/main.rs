@@ -1,16 +1,18 @@
 use std::fs;
 
-mod data_store;
+use primitives::Transaction;
+
 mod primitives;
 mod service;
 mod util;
 
+
+use primitives::BlockChain;
+
 pub type Hash = String;
 
 fn main() {
-    let mut mempool_instance = data_store::get_mempool_instance()
-        .lock()
-        .expect("Expected lock");
+    let mut mempool_instance: Vec<Transaction> = Vec::new();
 
     println!("Reading mempool");
 
@@ -19,14 +21,12 @@ fn main() {
         serde_json::from_reader(&mempool_file).expect("Expected json");
 
     mempool.iter().for_each(|t| {
-        mempool_instance.add_transaction(t.clone());
+        mempool_instance.push(t.clone());
     });
 
     println!("Reading blocks");
 
-    let mut blockchain_instance = data_store::get_blockchain_instance()
-        .lock()
-        .expect("Expected lock");
+    let mut blockchain_instance: BlockChain = Vec::new();
 
     let blockchain_file =
         fs::File::open("static/data/blockchain.json").expect("Expected file to exist");
@@ -35,14 +35,12 @@ fn main() {
         serde_json::from_reader(&blockchain_file).expect("Expected json");
 
     blockcain.iter().for_each(|b| {
-        blockchain_instance.add_block(b.clone());
+        blockchain_instance.push(b.clone());
     });
 
     println!("Reading addresses");
 
-    let mut addresses_instance = data_store::get_addresses_instance()
-        .lock()
-        .expect("Expected lock");
+    let mut addresses_instance: Vec<String> = Vec::new();
 
     let addresses_file =
         fs::File::open("static/data/miner_addresses.json").expect("Expected file to exist");

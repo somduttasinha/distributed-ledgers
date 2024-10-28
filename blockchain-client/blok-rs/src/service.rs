@@ -2,7 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use log::info;
 
-use crate::primitives::{Block, Transaction};
+use crate::primitives::{Block, BlockChain, Transaction};
 use crate::util::{generate_merkle_tree, hash};
 use crate::Hash;
 
@@ -91,6 +91,11 @@ pub fn create_block(
         },
         transactions: transactions.iter().cloned().cloned().collect(),
     }
+}
+
+pub fn write_to_file(blockchain: &BlockChain) {
+    let serialized = serde_json::to_string(blockchain).unwrap();
+    std::fs::write("static/data/current_blockchain.json", serialized).expect("Unable to write file");
 }
 
 fn calculate_hash(
