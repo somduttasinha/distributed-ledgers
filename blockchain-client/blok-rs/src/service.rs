@@ -1,11 +1,10 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use log::info;
-
 use crate::primitives::{Block, BlockChain, Transaction};
-use crate::util::{generate_merkle_tree, hash};
+use crate::util::{self, hash};
 use crate::Hash;
 
+/// Q1: Load the most recent hash from the blockchain
 pub fn load_most_recent_hash(blocks: &Vec<Block>) -> &Hash {
     let most_recent_block = blocks
         .iter()
@@ -15,6 +14,7 @@ pub fn load_most_recent_hash(blocks: &Vec<Block>) -> &Hash {
     &most_recent_block.block_header.hash
 }
 
+/// Q2: Create a new block from the mempool
 pub fn create_block(
     mempool: &Vec<Transaction>,
     blockchain: &Vec<Block>,
@@ -31,16 +31,17 @@ pub fn create_block(
 
     let new_timestamp = latest_timestamp + 10;
 
-    let mut transactions: Vec<&Transaction> = mempool
+    let mut transactions: Vec<Transaction> = mempool
         .iter()
         .filter(|t| t.lock_time <= new_timestamp)
+        .cloned()
         .collect();
 
     transactions.sort_by(|a, b| b.transaction_fee.cmp(&a.transaction_fee));
 
     transactions.truncate(100);
 
-    let merkle_tree = generate_merkle_tree(&transactions);
+    let merkle_tree = Block::generate_merkle_tree(&transactions);
 
     let transactions_merkle_root = merkle_tree[0].clone();
 
@@ -62,7 +63,7 @@ pub fn create_block(
 
     let difficulty = calculate_difficulty(most_recent_block.block_header.difficulty, height);
 
-    info!(
+    println!(
         "Creating block with difficulty: {}, height: {}, miner: {}, previous block hash: {}, timestamp: {}, transactions count: {}",
         difficulty, height, miner, previous_block_header_hash, new_timestamp, transactions_count
     );
@@ -89,13 +90,96 @@ pub fn create_block(
             transactions_count,
             transactions_merkle_root,
         },
-        transactions: transactions.iter().cloned().cloned().collect(),
+        transactions: transactions.iter().cloned().collect(),
+        merkle_tree,
     }
 }
 
+/// Q3: Write the current state of the blockchain to a file
 pub fn write_to_file(blockchain: &BlockChain) {
     let serialized = serde_json::to_string(blockchain).unwrap();
-    std::fs::write("static/data/current_blockchain.json", serialized).expect("Unable to write file");
+    std::fs::write("static/data/current_blockchain.json", serialized)
+        .expect("Unable to write file");
+}
+
+/// Q4: Show an inclusion proof the hash of a block
+///
+/// Outputs a vector of hashes
+pub fn produce_inclusion_proof(block: &mut Block, transaction_number: usize) -> Vec<&String> {
+    let mut inclusion_proof: Vec<&String> = Vec::new();
+
+    if transaction_number > block.get_merkle_tree().len() {
+        return inclusion_proof;
+    }
+
+    let merkle_tree = &block.merkle_tree;
+
+    if transaction_number % 2 == 1 {
+        inclusion_proof.push(&merkle_tree[transaction_number + 1])
+    } else {
+        inclusion_proof.push(&merkle_tree[transaction_number])
+    }
+
+    // get the indices required
+
+    let height = (((merkle_tree.len() + 1) as f64).log2() as u32) - 1;
+
+    let offset = (1 << height) - 1;
+
+    let transaction_idx = offset + transaction_number - 1;
+
+    println!("transaction idx: {}", transaction_idx);
+
+    let mut current_idx = match transaction_idx % 2 == 0 {
+        true => transaction_idx - 1,
+        false => transaction_idx + 1,
+    };
+
+    loop {
+        if false {
+            break;
+        }
+        inclusion_proof.push(&merkle_tree[current_idx]);
+        println!("Pushing index {} to vec", current_idx);
+        let parent_idx = (current_idx - 1) / 2;
+        if parent_idx == 0 {
+            break;
+        }
+        if parent_idx % 2 == 1 {
+            current_idx = parent_idx + 1;
+        } else {
+            current_idx = parent_idx - 1;
+        }
+    }
+
+    println!("{:?}", inclusion_proof);
+
+    inclusion_proof
+}
+
+// Q5: Verify inclusion proof
+//
+// Returns true if valid proof, else false
+
+pub fn verify_inclusion_proof(
+    root_hash: String,
+    transaction_hash: String,
+    proof: &Vec<String>,
+) -> bool {
+    let mut current_hash = transaction_hash; // hash of immediate parent
+    for hash in proof {
+        let raw_string;
+        if hash < &current_hash {
+            raw_string = format!("{}{}", hash, current_hash);
+        } else {
+            raw_string = format!("{}{}", current_hash, hash);
+        }
+
+        let new_hash = util::hash(&raw_string).clone();
+        current_hash = new_hash
+    }
+
+    current_hash == root_hash
 }
 
 fn calculate_hash(
@@ -108,7 +192,7 @@ fn calculate_hash(
     transactions_count: u32,
 ) -> (usize, String) {
     let mut nonce = 0;
-    let mut current_hash = hash(format!(
+    let mut current_hash = hash(&format!(
         "{},{},{},{},{}, {}, {}, {}",
         difficulty,
         height,
@@ -133,7 +217,7 @@ fn calculate_hash(
             transactions_count,
             transactions_merkle_root
         );
-        current_hash = hash(raw_string);
+        current_hash = hash(&raw_string);
     }
 
     (nonce, current_hash)

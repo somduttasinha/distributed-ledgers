@@ -6,7 +6,6 @@ mod primitives;
 mod service;
 mod util;
 
-
 use primitives::BlockChain;
 
 pub type Hash = String;
@@ -31,10 +30,10 @@ fn main() {
     let blockchain_file =
         fs::File::open("static/data/blockchain.json").expect("Expected file to exist");
 
-    let blockcain: Vec<primitives::Block> =
+    let blockchain: Vec<primitives::Block> =
         serde_json::from_reader(&blockchain_file).expect("Expected json");
 
-    blockcain.iter().for_each(|b| {
+    blockchain.iter().for_each(|b| {
         blockchain_instance.push(b.clone());
     });
 
@@ -54,10 +53,15 @@ fn main() {
     println!("Finished reading data from files");
 
     println!("Creating block");
-    let block = service::create_block(&mempool, &blockcain, &addresses);
+    let mut block = service::create_block(&mempool, &blockchain, &addresses);
+    blockchain_instance.push(block.clone());
     println!("Block created");
 
     let block_json = serde_json::to_string(&block).expect("Expected json");
 
-    println!("{}", block_json);
+    service::write_to_file(&blockchain_instance);
+
+    let inclusion_proof = service::produce_inclusion_proof(&mut block, 64);
+
+    println!("{:?}", inclusion_proof);
 }

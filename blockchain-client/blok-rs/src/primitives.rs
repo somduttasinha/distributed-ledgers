@@ -33,6 +33,56 @@ pub struct Block {
     #[serde(rename(serialize = "header", deserialize = "header"))]
     pub block_header: BlockHeader,
     pub transactions: Vec<Transaction>,
+
+    #[serde(skip)]
+    pub merkle_tree: Vec<String>,
+}
+
+impl Block {
+    pub fn get_merkle_tree(&mut self) -> Vec<String> {
+        if self.merkle_tree.len() == 0 {
+            self.merkle_tree = Block::generate_merkle_tree(&self.transactions);
+        }
+        self.merkle_tree.clone()
+    }
+
+    pub fn generate_merkle_tree(transactions: &Vec<Transaction>) -> Vec<String> {
+        println!("Generating Merkle tree");
+
+        let n = transactions.len() as u64;
+
+        let height = 64 - n.leading_zeros();
+
+        let null_string = format!("0x{:0>64}", ""); // Fill with 64 zeros
+
+        let size = (1 << (height + 1)) - 1;
+
+        let mut tree: Vec<String> = vec![null_string; size];
+
+        // iteratively populate the tree by starting from the index 2^height - 2 and going back
+
+        let mut idx = (1 << height) - 1;
+
+        for transaction in transactions {
+            tree[idx] = transaction.generate_hash();
+            idx += 1;
+        }
+
+        let end_idx = 1 << height - 2;
+
+        for i in (0..end_idx).rev() {
+            let left_child = &tree[(2 * i) + 1];
+            let right_child = &tree[(2 * i) + 2];
+
+            if left_child < right_child {
+                tree[i] = hash(&format!("{}{}", left_child, right_child));
+            } else {
+                tree[i] = hash(&format!("{}{}", right_child, left_child));
+            }
+        }
+
+        tree
+    }
 }
 
 impl Transaction {
@@ -47,6 +97,6 @@ impl Transaction {
             self.transaction_fee
         );
 
-        hash(raw_string)
+        hash(&raw_string)
     }
 }
